@@ -17,7 +17,7 @@ enum HttpMethod { NONE = 0, GET = 1, POST = 2 };
 struct Route {
   enum HttpMethod method;
   char *path;
-  void (*fn)(char *); // FIXME: Is this a good idea?
+  int (*fn)(char **, char *); // FIXME: Is this a good idea?
 };
 
 int find_route(struct Route *res, char *path, enum HttpMethod method,
@@ -43,6 +43,13 @@ enum HttpMethod map_http_method(char *method) {
   return NONE;
 }
 
+char *create_response() {
+  return "HTTP/1.1 200 OK\r\n"
+         "Content-Type: text/html\r\n"
+         "\r\n"
+         "HELLO WORLD";
+}
+
 void accept_connections(int sock, struct Route *routes, int size) {
   regmatch_t matches[3];
   regex_t res_regex;
@@ -63,7 +70,7 @@ void accept_connections(int sock, struct Route *routes, int size) {
 
     if ((client_fd = accept(sock, (struct sockaddr *)&client_addr,
                             &client_addr_len)) < 0) {
-      printf("Accept failed");
+      perror("Accept failed");
       exit(EXIT_FAILURE);
     }
 
@@ -71,7 +78,7 @@ void accept_connections(int sock, struct Route *routes, int size) {
 
     if (bytes_read > 0) {
       if (regexec(&res_regex, buffer, 3, matches, 0) < 0) {
-        printf("Failed to exec regex on request");
+        perror("Failed to exec regex on request");
         exit(EXIT_FAILURE);
       };
 
@@ -85,19 +92,27 @@ void accept_connections(int sock, struct Route *routes, int size) {
       int success = find_route(&res, path, map_http_method(method), routes, 1);
 
       if (success > 0) {
-        (*res.fn)(path);
+        char *response;
+        (*res.fn)(&response, path);
+        if (send(client_fd, response, sizeof(*response), 0) < 0) {
+          perror("Failed to send response");
+        };
       } else {
         printf("404: %s %s\n", method, path);
       }
     }
 
+    fflush(stderr);
     fflush(stdout);
     close(client_fd);
     free(path);
   }
 }
 
-void test_route_fn(char *p) { printf("TEST ROUTE CALLED: %s\n", p); }
+int test_route_fn(char **res, char *path) {
+  *res = create_response();
+  return 1;
+}
 
 int main() {
   // TODO Implement a hashmap to store routes?
@@ -120,12 +135,12 @@ int main() {
   server_addr.sin_port = htons(PORT);
 
   if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    printf("bind failed");
+    perror("bind failed");
     exit(EXIT_FAILURE);
   }
 
   if (listen(sock, 10) < 0) {
-    printf("listen failed");
+    perror("listen failed");
     exit(EXIT_FAILURE);
   }
 
