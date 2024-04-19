@@ -1,26 +1,32 @@
 #ifndef ROUTES_H_INCLUDED
 #define ROUTES_H_INCLUDED
 
-typedef int (*route_fn)(char **, char *);
+typedef struct {
+  int status_code;
+  char *headers; // TODO Struct?
+  char *data;
+} Response;
+
+typedef Response *(*RouteFn)(char *);
 
 typedef struct {
   char *path;
-  route_fn fn;
-} route_item;
+  RouteFn fn;
+} RouteItem;
 
 typedef struct {
-  route_item **items;
+  RouteItem **items;
   int size;
-} route_table;
+} RouteTable;
 
-route_table *new_table(int size);
+RouteTable *new_table(int size);
 
-route_item *new_item(char *path, route_fn fn);
+RouteItem *new_item(char *path, RouteFn fn);
 
-void print_table(route_table *table);
+void print_table(RouteTable *table);
 
-int insert(route_table *table, route_item *item);
+int insert(RouteTable *table, RouteItem *item);
 
-route_item *get_item(char *path, route_table *table);
+RouteItem *get_item(char *path, RouteTable *table);
 
 #endif

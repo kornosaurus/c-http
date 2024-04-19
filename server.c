@@ -9,49 +9,28 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// TODO Better logging
+// FIXME Address already in use after closing, something doesnt clear properly
+
 #define PORT 3000
 #define BUFFER_SIZE 1024
-#define PATH_SIZE 64
+#define PATH_SIZE 256
 
-enum HttpMethod { NONE = 0, GET = 1, POST = 2 };
-
-struct Route {
-  enum HttpMethod method;
-  char *path;
-  int (*fn)(char **, char *); // FIXME: Is this a good idea?
-};
-
-int find_route(struct Route *res, char *path, enum HttpMethod method,
-               struct Route *routes, int size) {
-  if (method == NONE) {
-    return 0;
-  }
-  for (int i = 0; i < size; i++) {
-    if (routes[i].method == method && strcmp(path, routes[i].path) == 0) {
-      *res = routes[i];
-      return 1;
-    }
-  }
-  return 0;
+int create_response(Response *res, char *out, int size) {
+  snprintf(out, size,
+           "HTTP/1.1 %d OK\r\n"
+           "%s\r\n"
+           "\r\n"
+           "%s",
+           res->status_code, res->headers, res->data);
+  return 1;
 }
 
-enum HttpMethod map_http_method(char *method) {
-  if (strcmp(method, "GET") == 0) {
-    return GET;
-  } else if (strcmp(method, "GET") == 0) {
-    return POST;
-  }
-  return NONE;
-}
+Response not_found_response = {.status_code = 404,
+                               .headers = "Content-Type: text/plain",
+                               .data = "Not found"};
 
-char *create_response() {
-  return "HTTP/1.1 200 OK\r\n"
-         "Content-Type: text/plain\r\n"
-         "\r\n"
-         "oi";
-}
-
-void accept_connections(int sock, route_table *table) {
+void accept_connections(int sock, RouteTable *table) {
   regmatch_t matches[3];
   regex_t res_regex;
 
@@ -71,7 +50,7 @@ void accept_connections(int sock, route_table *table) {
 
     if ((client_fd = accept(sock, (struct sockaddr *)&client_addr,
                             &client_addr_len)) < 0) {
-      perror("Accept failed");
+      perror("Connection failed");
       exit(EXIT_FAILURE);
     }
 
@@ -84,45 +63,35 @@ void accept_connections(int sock, route_table *table) {
       };
 
       buffer[matches[2].rm_eo] = 0;
-      strcpy(path, buffer + matches[2].rm_so);
+      strncpy(path, buffer + matches[2].rm_so, PATH_SIZE);
 
       buffer[matches[1].rm_eo] = 0;
       method = buffer + matches[1].rm_so;
 
-      struct Route res;
-      route_item *route = get_item(path, table);
+      RouteItem *route = get_item(path, table);
+      char *response_str = malloc(BUFFER_SIZE);
 
       if (route) {
-        char *response;
-        (*route->fn)(&response, path);
-        if (send(client_fd, response, strlen(response), 0) < 0) {
-          perror("Failed to send response");
-        };
+        Response *response_obj = (*route->fn)(path);
+        create_response(response_obj, response_str, BUFFER_SIZE);
+        printf("%d: %s %s\n", response_obj->status_code, method, path);
       } else {
+        create_response(&not_found_response, response_str, BUFFER_SIZE);
         printf("404: %s %s\n", method, path);
       }
+
+      if (send(client_fd, response_str, strlen(response_str), 0) < 0) {
+        perror("Failed to send response");
+      };
     }
 
-    fflush(stderr);
     fflush(stdout);
     close(client_fd);
     free(path);
   }
 }
 
-int test_route_fn(char **res, char *path) {
-  *res = create_response();
-  return 1;
-}
-
-int main() {
-  route_table *table = new_table(10);
-
-  insert(table, new_item("/test/path", test_route_fn));
-
-  print_table(table);
-
-  // SOCKET
+void start_server(RouteTable *route_table) {
   struct sockaddr_in server_addr;
   int sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -131,20 +100,17 @@ int main() {
   server_addr.sin_port = htons(PORT);
 
   if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    perror("bind failed");
+    perror("Bind failed");
     exit(EXIT_FAILURE);
   }
 
   if (listen(sock, 10) < 0) {
-    perror("listen failed");
+    perror("Listen failed");
     exit(EXIT_FAILURE);
   }
 
   printf("Listening to port %d\n\n", PORT);
   fflush(stdout);
-  // END SOCKET
 
-  accept_connections(sock, table);
-
-  // TODO: Free table
+  accept_connections(sock, route_table);
 }

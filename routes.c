@@ -7,6 +7,40 @@
 
 // TODO: Remove item
 // TODO: Free table
+// TODO: Handle collisions
+
+RouteTable *new_table(int size) {
+  RouteTable *table = malloc(size);
+  table->size = size;
+  table->items = calloc(size, sizeof(RouteItem));
+
+  for (int i = 0; i < size; i++) {
+    table->items[i] = NULL;
+  }
+
+  return table;
+};
+
+RouteItem *new_item(char *path, RouteFn fn) {
+  RouteItem *item = malloc(sizeof(RouteItem));
+  item->path = malloc(strnlen(path, PATH_SIZE));
+  strncpy(item->path, path, PATH_SIZE);
+  item->fn = fn;
+
+  return item;
+};
+
+void print_table(RouteTable *table) {
+  printf("-----------------------\n");
+  for (int i = 0; i < table->size; i++) {
+    if (table->items[i]) {
+      printf("%s\n", table->items[i]->path);
+    } else {
+      printf("--\n");
+    }
+  }
+  printf("-----------------------\n");
+}
 
 unsigned int hash(char *path, int size) {
   int len = strnlen(path, PATH_SIZE);
@@ -20,47 +54,14 @@ unsigned int hash(char *path, int size) {
   return result;
 }
 
-route_table *new_table(int size) {
-  route_table *table = malloc(size);
-  table->size = size;
-  table->items = calloc(size, sizeof(route_item));
-
-  for (int i = 0; i < size; i++) {
-    table->items[i] = NULL;
-  }
-
-  return table;
-};
-
-route_item *new_item(char *path, route_fn fn) {
-  route_item *item = malloc(sizeof(route_item));
-  item->path = malloc(strnlen(path, PATH_SIZE));
-  strncpy(item->path, path, PATH_SIZE);
-  item->fn = fn;
-
-  return item;
-};
-
-void print_table(route_table *table) {
-  printf("-----------------------\n");
-  for (int i = 0; i < table->size; i++) {
-    if (table->items[i]) {
-      printf("%s\n", table->items[i]->path);
-    } else {
-      printf("--\n");
-    }
-  }
-  printf("-----------------------\n");
-}
-
-int insert(route_table *table, route_item *item) {
+int insert(RouteTable *table, RouteItem *item) {
   // TODO: Handle collisions
   int index = hash(item->path, table->size);
   table->items[index] = item;
   return 1;
 }
 
-route_item *get_item(char *path, route_table *table) {
+RouteItem *get_item(char *path, RouteTable *table) {
   int index = hash(path, table->size);
   if (table->items[index] && strcmp(table->items[index]->path, path) == 0) {
     return table->items[index];
