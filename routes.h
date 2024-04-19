@@ -7,7 +7,7 @@ typedef struct {
   char *data;
 } Response;
 
-typedef Response *(*RouteFn)(char *);
+typedef int *(*RouteFn)(Response *, char *);
 
 typedef struct {
   char *path;

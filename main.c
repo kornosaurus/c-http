@@ -1,11 +1,11 @@
 #include "server.h"
+#include <stdlib.h>
 
-Response *test_route_fn(char *path) {
-  Response *response;
+int *test_route_fn(Response *response, char *path) {
   response->status_code = 200;
   response->headers = "Content-Type: text/plain";
   response->data = "suuuh dud";
-  return response;
+  return NULL;
 }
 
 int main() {
