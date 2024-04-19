@@ -9,9 +9,10 @@ typedef struct {
 
 typedef int *(*RouteFn)(Response *, char *);
 
-typedef struct {
+typedef struct RouteItem {
   char *path;
   RouteFn fn;
+  struct RouteItem *next;
 } RouteItem;
 
 typedef struct {
