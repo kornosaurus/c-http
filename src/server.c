@@ -71,11 +71,11 @@ void *handle_client(void *args) {
       // TODO Handle return value from route fn
       (*route->fn)(response_obj, path);
       create_response(response_obj, response_str, BUFFER_SIZE);
-      printf("%d: %s %s\n", response_obj->status_code, method, path);
+      printf("%d %s %s\n", response_obj->status_code, method, path);
       free(response_obj);
     } else {
       create_response(&not_found_response, response_str, BUFFER_SIZE);
-      printf("404: %s %s\n", method, path);
+      printf("404 %s %s\n", method, path);
     }
 
     if (send(*ctx->client_fd, response_str, strlen(response_str), 0) < 0) {
