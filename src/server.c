@@ -1,4 +1,4 @@
-#include "routes.h"
+#include "include/routes.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -11,7 +11,6 @@
 #include <unistd.h>
 
 // TODO Better logging
-// FIXME Address already in use after closing, something doesnt clear properly
 
 #define PORT 3000
 #define BUFFER_SIZE 1024
@@ -38,7 +37,6 @@ Response not_found_response = {.status_code = 404,
                                .data = "Not found"};
 
 void *handle_client(void *args) {
-  sleep(2);
   regmatch_t matches[3];
   regex_t res_regex;
 

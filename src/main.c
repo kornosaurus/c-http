@@ -1,4 +1,4 @@
-#include "server.h"
+#include "include/server.h"
 #include <stdlib.h>
 
 int *test_route_fn(Response *response, char *path) {
