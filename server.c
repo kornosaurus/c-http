@@ -1,3 +1,4 @@
+#include "routes.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <regex.h>
@@ -45,12 +46,12 @@ enum HttpMethod map_http_method(char *method) {
 
 char *create_response() {
   return "HTTP/1.1 200 OK\r\n"
-         "Content-Type: text/html\r\n"
+         "Content-Type: text/plain\r\n"
          "\r\n"
-         "HELLO WORLD";
+         "oi";
 }
 
-void accept_connections(int sock, struct Route *routes, int size) {
+void accept_connections(int sock, route_table *table) {
   regmatch_t matches[3];
   regex_t res_regex;
 
@@ -89,12 +90,12 @@ void accept_connections(int sock, struct Route *routes, int size) {
       method = buffer + matches[1].rm_so;
 
       struct Route res;
-      int success = find_route(&res, path, map_http_method(method), routes, 1);
+      route_item *route = get_item(path, table);
 
-      if (success > 0) {
+      if (route) {
         char *response;
-        (*res.fn)(&response, path);
-        if (send(client_fd, response, sizeof(*response), 0) < 0) {
+        (*route->fn)(&response, path);
+        if (send(client_fd, response, strlen(response), 0) < 0) {
           perror("Failed to send response");
         };
       } else {
@@ -115,16 +116,11 @@ int test_route_fn(char **res, char *path) {
 }
 
 int main() {
-  // TODO Implement a hashmap to store routes?
-  int idx = 0;
-  struct Route **routes = malloc(10);
-  struct Route test_route;
+  route_table *table = new_table(10);
 
-  test_route.path = "/test/path";
-  test_route.method = GET;
-  test_route.fn = &test_route_fn;
+  insert(table, new_item("/test/path", test_route_fn));
 
-  routes[idx++] = &test_route;
+  print_table(table);
 
   // SOCKET
   struct sockaddr_in server_addr;
@@ -148,7 +144,7 @@ int main() {
   fflush(stdout);
   // END SOCKET
 
-  accept_connections(sock, *routes, idx);
+  accept_connections(sock, table);
 
-  free(routes);
+  // TODO: Free table
 }
